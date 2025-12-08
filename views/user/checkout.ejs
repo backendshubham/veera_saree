@@ -1,0 +1,22 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar', { userId: typeof userId !== 'undefined' ? userId : null, userName: typeof userName !== 'undefined' ? userName : null }) %>
+
+<div class="container mt-4">
+    <h1 class="mb-4">Checkout</h1>
+    <p class="text-muted">This is a simplified checkout. In a real application, you would collect shipping and payment information here.</p>
+    
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> Click "Place Order" to complete your purchase.
+    </div>
+    
+    <form action="/orders/checkout" method="POST">
+        <%- include('../partials/csrf-token') %>
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-check-circle"></i> Place Order
+        </button>
+        <a href="/cart" class="btn btn-secondary btn-lg">Back to Cart</a>
+    </form>
+</div>
+
+<%- include('../partials/footer') %>
+

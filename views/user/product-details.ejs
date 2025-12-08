@@ -1,0 +1,245 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar', { userId: typeof userId !== 'undefined' ? userId : null, userName: typeof userName !== 'undefined' ? userName : null }) %>
+
+<div class="container mt-4 mb-5">
+    <% if (typeof flash !== 'undefined' && flash) { %>
+        <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show" role="alert">
+            <%= flash.message %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <% } %>
+    
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Home</a></li>
+            <li class="breadcrumb-item"><a href="/collections">Collections</a></li>
+            <li class="breadcrumb-item active"><%= product.title %></li>
+        </ol>
+    </nav>
+    
+    <div class="row product-details-row">
+        <div class="col-md-6 mb-4 product-details-image">
+            <div class="product-image-wrapper" style="border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-lg);">
+                <img src="<%= product.image %>" class="img-fluid" alt="<%= product.title %>" style="width: 100%; height: auto; display: block;">
+            </div>
+        </div>
+        <div class="col-md-6 product-details-info">
+            <div class="card border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+                <div class="card-body p-5">
+                    <span class="badge bg-secondary mb-2"><%= product.category %></span>
+                    <h1 class="mb-3" style="color: var(--veera-black);"><%= product.title %></h1>
+                    
+                    <div class="price-section mb-4">
+                        <% if (product.original_price && product.original_price > product.price) { %>
+                            <span class="original-price">Rs. <%= product.original_price.toLocaleString('en-IN', {minimumFractionDigits: 2}) %></span>
+                        <% } %>
+                        <div class="mt-2">
+                            <span class="current-price">Rs. <%= product.price.toLocaleString('en-IN', {minimumFractionDigits: 2}) %></span>
+                            <% if (product.discount_percentage && product.discount_percentage > 0) { %>
+                                <span class="discount-badge">(-<%= product.discount_percentage %>%)</span>
+                            <% } %>
+                        </div>
+                    </div>
+                    
+                    <!-- Rating Display -->
+                    <div class="mb-4">
+                        <% if (avgRating > 0) { %>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="star-rating me-3">
+                                    <% for (let i = 1; i <= 5; i++) { %>
+                                        <i class="bi bi-star<%= i <= Math.round(avgRating) ? '-fill' : '' %> text-warning" style="font-size: 1.5rem;"></i>
+                                    <% } %>
+                                </div>
+                                <div>
+                                    <div class="fw-bold" style="font-size: 1.2rem;">
+                                        <%= avgRating %> out of 5
+                                    </div>
+                                    <div class="text-muted" style="font-size: 0.9rem;">
+                                        Based on <%= totalRatings || 0 %> <%= totalRatings === 1 ? 'rating' : 'ratings' %>
+                                    </div>
+                                </div>
+                            </div>
+                        <% } else { %>
+                            <div class="mb-3">
+                                <span class="text-muted">No ratings yet. Be the first to rate this product!</span>
+                            </div>
+                        <% } %>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <span class="badge bg-<%= product.stock > 10 ? 'success' : product.stock > 0 ? 'warning' : 'danger' %> fs-6 px-3 py-2">
+                            <i class="bi bi-<%= product.stock > 0 ? 'check-circle' : 'x-circle' %>"></i> 
+                            <%= product.stock > 0 ? `${product.stock} in stock` : 'Out of Stock' %>
+                        </span>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h6>Description</h6>
+                        <p class="text-muted"><%= product.description %></p>
+                    </div>
+                    
+                    <% if (product.qr_code) { %>
+                        <div class="mb-4 p-3" style="background: #f8f9fa; border-radius: 12px; border: 1px solid #e0e0e0;">
+                            <h6 class="mb-3"><i class="bi bi-qr-code-scan"></i> Product QR Code</h6>
+                            <div class="text-center">
+                                <% if (product.qr_code_image) { %>
+                                    <img src="<%= product.qr_code_image %>" alt="QR Code" style="max-width: 200px; height: auto; display: block; margin: 0 auto; border: 1px solid #ddd; padding: 10px; background: white; border-radius: 8px;">
+                                <% } else { %>
+                                    <canvas id="productQRCode" style="max-width: 200px; height: auto; display: block; margin: 0 auto; border: 1px solid #ddd; padding: 10px; background: white; border-radius: 8px;"></canvas>
+                                <% } %>
+                            </div>
+                        </div>
+                    <% } %>
+                    
+                    <% if (product.stock > 0) { %>
+                        <% if (typeof userId !== 'undefined' && userId) { %>
+                            <form action="/cart/add" method="POST" class="mb-4">
+                                <%- include('../partials/csrf-token') %>
+                                <input type="hidden" name="productId" value="<%= product.id %>">
+                                <div class="row align-items-center g-3">
+                                    <div class="col-auto">
+                                        <label for="quantity" class="form-label fw-bold">Quantity:</label>
+                                    </div>
+                                    <div class="col-auto">
+                                        <input type="number" class="form-control form-control-lg" id="quantity" name="quantity" 
+                                               value="1" min="1" max="<%= product.stock %>" style="width: 100px;">
+                                    </div>
+                                    <div class="col-12 mt-3">
+                                        <button type="submit" class="btn btn-gradient-modern btn-lg w-100 py-3" style="border: none; border-radius: 12px; font-weight: 600; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s; color: white !important;">
+                                            <i class="bi bi-cart-plus"></i> Add to Cart
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        <% } else { %>
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle"></i> Please <a href="/auth/login" style="color: var(--veera-red); font-weight: 600;">login</a> or <a href="/auth/register" style="color: var(--veera-red); font-weight: 600;">create an account</a> to add items to cart and place orders.
+                            </div>
+                            <a href="/auth/login" class="btn btn-gradient-modern btn-lg w-100 py-3" style="border: none; border-radius: 12px; font-weight: 600; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s; color: white !important; text-decoration: none; display: inline-block; text-align: center;">
+                                <i class="bi bi-box-arrow-in-right"></i> Login to Order
+                            </a>
+                        <% } %>
+                    <% } else { %>
+                        <button class="btn btn-secondary btn-lg w-100 py-3" disabled>Out of Stock</button>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Reviews Section -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <h3>Customer Reviews</h3>
+            <% if (avgRating > 0) { %>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="star-rating me-3">
+                        <% for (let i = 1; i <= 5; i++) { %>
+                            <i class="bi bi-star<%= i <= Math.round(avgRating) ? '-fill' : '' %> text-warning" style="font-size: 1.3rem;"></i>
+                        <% } %>
+                    </div>
+                    <div>
+                        <strong style="font-size: 1.1rem;"><%= avgRating %></strong> out of 5 
+                        <span class="text-muted">(<%= totalRatings || 0 %> <%= totalRatings === 1 ? 'review' : 'reviews' %>)</span>
+                    </div>
+                </div>
+            <% } else { %>
+                <p class="text-muted mb-3">No reviews yet. Be the first to review this product!</p>
+            <% } %>
+            
+            <% if (typeof userId !== 'undefined' && userId) { %>
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5>Add a Review</h5>
+                        <form action="/products/<%= product.id %>/review" method="POST">
+                            <%- include('../partials/csrf-token') %>
+                            <div class="mb-3">
+                                <label for="rating" class="form-label">Rating</label>
+                                <select class="form-select" id="rating" name="rating" required>
+                                    <option value="">Select Rating</option>
+                                    <option value="5">5 - Excellent</option>
+                                    <option value="4">4 - Very Good</option>
+                                    <option value="3">3 - Good</option>
+                                    <option value="2">2 - Fair</option>
+                                    <option value="1">1 - Poor</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="message" class="form-label">Review</label>
+                                <textarea class="form-control" id="message" name="message" rows="3"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-gradient-modern" style="color: white !important; border: none;">Submit Review</button>
+                        </form>
+                    </div>
+                </div>
+            <% } %>
+            
+            <div class="list-group">
+                <% if (reviews && reviews.length > 0) { %>
+                    <% reviews.forEach(review => { %>
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <h6 class="mb-1"><%= review.user_name %></h6>
+                                <small class="text-muted">
+                                    <% for (let i = 1; i <= 5; i++) { %>
+                                        <i class="bi bi-star<%= i <= review.rating ? '-fill text-warning' : '' %>"></i>
+                                    <% } %>
+                                </small>
+                            </div>
+                            <% if (review.message) { %>
+                                <p class="mb-1"><%= review.message %></p>
+                            <% } %>
+                            <small class="text-muted"><%= new Date(review.created_at).toLocaleDateString() %></small>
+                        </div>
+                    <% }); %>
+                <% } else { %>
+                    <div class="list-group-item text-muted">No reviews yet. Be the first to review!</div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
+    <% if (product.qr_code && !product.qr_code_image) { %>
+        (function() {
+            const canvas = document.getElementById('productQRCode');
+            if (!canvas) return;
+            
+            let retryCount = 0;
+            const maxRetries = 20;
+            
+            function generateQR() {
+                if (typeof QRCode !== 'undefined') {
+                    try {
+                        QRCode.toCanvas(canvas, '<%= product.qr_code %>', {
+                            width: 200,
+                            margin: 2,
+                            color: {
+                                dark: '#000000',
+                                light: '#FFFFFF'
+                            }
+                        }, function (error) {
+                            if (error) console.error('QR Code generation error:', error);
+                        });
+                    } catch (error) {
+                        console.error('QR Code error:', error);
+                    }
+                } else if (retryCount < maxRetries) {
+                    retryCount++;
+                    setTimeout(generateQR, 200);
+                }
+            }
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', generateQR);
+            } else {
+                generateQR();
+            }
+        })();
+    <% } %>
+</script>
+
+<%- include('../partials/footer') %>
+
