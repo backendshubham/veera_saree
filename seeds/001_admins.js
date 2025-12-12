@@ -9,7 +9,7 @@ exports.seed = async function(knex) {
     {
       id: 1,
       name: 'Admin User',
-      email: 'admin@veerasarees.com',
+      email: 'admin@shubhamcollection.com',
       password: hashedPassword,
       created_at: new Date(),
       updated_at: new Date()

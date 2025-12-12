@@ -3,8 +3,9 @@ const router = express.Router();
 const adminController = require('../controllers/admin.controller');
 const productController = require('../controllers/product.controller');
 const orderController = require('../controllers/order.controller');
+const categoryController = require('../controllers/category.controller');
 const { requireAdmin, redirectIfAdminAuthenticated } = require('../../middlewares/authMiddleware');
-const { csrfValidationAfterMulter } = require('../../middlewares/csrfMiddleware');
+const { csrfValidationAfterMulter, csrfMiddleware } = require('../../middlewares/csrfMiddleware');
 const upload = require('../../config/upload');
 
 // Auth routes
@@ -27,6 +28,14 @@ router.post('/products/:id/delete', requireAdmin, productController.adminDeleteP
 // Order routes
 router.get('/orders', requireAdmin, orderController.adminListOrders);
 router.post('/orders/:id/status', requireAdmin, orderController.adminUpdateOrderStatus);
+
+// Category routes
+router.get('/categories', requireAdmin, categoryController.adminListCategories);
+router.get('/categories/new', requireAdmin, categoryController.adminShowCategoryForm);
+router.get('/categories/:id/edit', requireAdmin, categoryController.adminShowCategoryForm);
+router.post('/categories', requireAdmin, csrfMiddleware, categoryController.adminCreateCategory);
+router.post('/categories/:id', requireAdmin, csrfMiddleware, categoryController.adminUpdateCategory);
+router.post('/categories/:id/delete', requireAdmin, csrfMiddleware, categoryController.adminDeleteCategory);
 
 module.exports = router;
 

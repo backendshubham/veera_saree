@@ -15,6 +15,26 @@ const register = async (req, res) => {
       return res.redirect('/auth/register');
     }
     
+    // Validate phone number (10 digits)
+    if (!phone || phone.trim() === '') {
+      setFlash(req, 'error', 'Phone number is required');
+      return res.redirect('/auth/register');
+    }
+    
+    // Remove any non-digit characters and validate length
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setFlash(req, 'error', 'Phone number must be exactly 10 digits');
+      return res.redirect('/auth/register');
+    }
+    
+    // Check if phone number already exists
+    const existingPhone = await db('users').where({ phone: `+91${cleanPhone}` }).first();
+    if (existingPhone) {
+      setFlash(req, 'error', 'Phone number already registered');
+      return res.redirect('/auth/register');
+    }
+    
     // Check if user already exists
     const existingUser = await db('users').where({ email }).first();
     if (existingUser) {
@@ -25,12 +45,12 @@ const register = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Create user
+    // Create user with +91 prefix
     const [user] = await db('users').insert({
       name,
       email,
       password: hashedPassword,
-      phone: phone || null
+      phone: `+91${cleanPhone}`
     }).returning('*');
     
     // Set session

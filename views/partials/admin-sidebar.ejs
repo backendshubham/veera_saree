@@ -1,9 +1,9 @@
 <!-- Sidebar -->
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <h3 class="sidebar-brand">
-            <i class="bi bi-gem"></i> Veera Admin
-        </h3>
+            <h3 class="sidebar-brand">
+                <i class="bi bi-gem"></i> Veera Admin
+            </h3>
         <button class="sidebar-toggle d-md-none" id="sidebarToggle">
             <i class="bi bi-x-lg"></i>
         </button>
@@ -21,6 +21,12 @@
                 <a href="/admin/products" class="nav-link <%= typeof currentPage !== 'undefined' && currentPage === 'products' ? 'active' : '' %>">
                     <i class="bi bi-box-seam"></i>
                     <span>Products</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/admin/categories" class="nav-link <%= typeof currentPage !== 'undefined' && currentPage === 'categories' ? 'active' : '' %>">
+                    <i class="bi bi-tags"></i>
+                    <span>Categories</span>
                 </a>
             </li>
             <li class="nav-item">

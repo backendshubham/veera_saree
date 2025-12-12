@@ -1,10 +1,71 @@
 const db = require('../../config/database');
 const { setFlash } = require('../../libs/helpers');
 
+// Show checkout page
+const showCheckout = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    
+    // Get cart items
+    const cartItems = await db('cart')
+      .where({ user_id: userId })
+      .join('products', 'cart.product_id', 'products.id')
+      .select(
+        'cart.id',
+        'cart.quantity',
+        'products.id as product_id',
+        'products.title',
+        'products.price',
+        'products.image',
+        'products.stock'
+      );
+    
+    if (cartItems.length === 0) {
+      setFlash(req, 'error', 'Your cart is empty');
+      return res.redirect('/cart');
+    }
+    
+    // Get user info
+    const user = await db('users').where({ id: userId }).first();
+    
+    res.render('user/checkout', {
+      title: 'Checkout',
+      cartItems,
+      userName: user ? user.name : '',
+      userId
+    });
+  } catch (error) {
+    console.error('Show checkout error:', error);
+    setFlash(req, 'error', 'Error loading checkout');
+    res.redirect('/cart');
+  }
+};
+
 // Create order (checkout)
 const createOrder = async (req, res) => {
   try {
     const userId = req.session.userId;
+    const { customer_name, customer_phone, shipping_address, city, state, pincode } = req.body;
+    
+    // Validate required fields
+    if (!customer_name || !customer_phone || !shipping_address || !city || !state || !pincode) {
+      setFlash(req, 'error', 'Please fill in all required address fields');
+      return res.redirect('/orders/checkout');
+    }
+    
+    // Validate phone number (10 digits)
+    const cleanPhone = customer_phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setFlash(req, 'error', 'Phone number must be exactly 10 digits');
+      return res.redirect('/orders/checkout');
+    }
+    
+    // Validate pincode (6 digits)
+    const cleanPincode = pincode.replace(/\D/g, '');
+    if (cleanPincode.length !== 6) {
+      setFlash(req, 'error', 'Pincode must be exactly 6 digits');
+      return res.redirect('/orders/checkout');
+    }
     
     // Get cart items
     const cartItems = await db('cart')
@@ -31,11 +92,17 @@ const createOrder = async (req, res) => {
       totalAmount += parseFloat(item.price) * item.quantity;
     });
     
-    // Create order
+    // Create order with address
     const [order] = await db('orders').insert({
       user_id: userId,
       total_amount: totalAmount,
-      status: 'pending'
+      status: 'processing', // Changed from 'pending' to 'processing' (which shows as "Placed" in the timeline)
+      customer_name: customer_name.trim(),
+      customer_phone: `+91${cleanPhone}`, // Store with +91 prefix
+      shipping_address: shipping_address.trim(),
+      city: city.trim(),
+      state: state.trim(),
+      pincode: cleanPincode
     }).returning('*');
     
     // Create order items and update stock
@@ -60,8 +127,21 @@ const createOrder = async (req, res) => {
     res.redirect(`/orders/${order.id}`);
   } catch (error) {
     console.error('Create order error:', error);
-    setFlash(req, 'error', 'Error placing order');
-    res.redirect('/cart');
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    // Provide more specific error messages
+    let errorMessage = 'Error placing order. Please try again.';
+    if (error.message.includes('violates foreign key constraint')) {
+      errorMessage = 'Invalid product or user. Please refresh and try again.';
+    } else if (error.message.includes('null value')) {
+      errorMessage = 'Please fill in all required fields.';
+    } else if (error.message.includes('duplicate key')) {
+      errorMessage = 'An error occurred. Please try again.';
+    }
+    
+    setFlash(req, 'error', errorMessage);
+    res.redirect('/orders/checkout');
   }
 };
 
@@ -197,7 +277,8 @@ const adminUpdateOrderStatus = async (req, res) => {
 const addReview = async (req, res) => {
   try {
     const userId = req.session.userId;
-    const { productId, rating, message, orderId } = req.body;
+    const productId = req.params.id || req.body.productId; // Get from URL params or body
+    const { rating, message, orderId } = req.body;
     
     if (!productId || !rating || rating < 1 || rating > 5) {
       setFlash(req, 'error', 'Invalid review data');
@@ -246,6 +327,7 @@ const addReview = async (req, res) => {
 };
 
 module.exports = {
+  showCheckout,
   createOrder,
   getOrderDetails,
   getUserOrders,

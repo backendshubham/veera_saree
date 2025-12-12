@@ -57,36 +57,82 @@ const dashboard = async (req, res) => {
     const totalOrdersCount = await db('orders').count('id as count').first();
     
     // Get orders by status for pie chart
-    const ordersByStatus = await db('orders')
+    const ordersByStatusRaw = await db('orders')
       .select('status')
       .count('id as count')
       .groupBy('status');
     
+    const ordersByStatus = ordersByStatusRaw.map(row => ({
+      status: row.status,
+      count: typeof row.count === 'string' ? parseInt(row.count) : (row.count || 0)
+    }));
+    
     // Get products by category for pie chart
-    const productsByCategory = await db('products')
-      .select('category')
-      .count('id as count')
-      .groupBy('category');
+    // Try to get from categories table first, fallback to products.category
+    let productsByCategory = [];
+    try {
+      const categoriesWithProducts = await db('categories')
+        .leftJoin('products', function() {
+          this.on('categories.id', '=', 'products.category_id')
+            .orOn('categories.name', '=', 'products.category');
+        })
+        .select('categories.name as category')
+        .count('products.id as count')
+        .groupBy('categories.id', 'categories.name')
+        .where('categories.is_active', true);
+      
+      productsByCategory = categoriesWithProducts.map(cat => ({
+        category: cat.category || 'Uncategorized',
+        count: parseInt(cat.count) || 0
+      }));
+      
+      // If no categories found, try old method
+      if (productsByCategory.length === 0) {
+        const oldCategories = await db('products')
+          .select('category')
+          .count('id as count')
+          .whereNotNull('category')
+          .groupBy('category');
+        productsByCategory = oldCategories;
+      }
+    } catch (err) {
+      // Fallback to old method if categories table doesn't exist
+      productsByCategory = await db('products')
+        .select('category')
+        .count('id as count')
+        .whereNotNull('category')
+        .groupBy('category');
+    }
     
     // Get orders by month for bar chart (last 6 months)
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     
-    const ordersByMonth = await db('orders')
+    const ordersByMonthRaw = await db('orders')
       .select(db.raw("TO_CHAR(created_at, 'YYYY-MM') as month"))
       .count('id as count')
       .where('created_at', '>=', sixMonthsAgo)
       .groupByRaw("TO_CHAR(created_at, 'YYYY-MM')")
       .orderBy('month', 'asc');
     
+    const ordersByMonth = ordersByMonthRaw.map(row => ({
+      month: row.month,
+      count: typeof row.count === 'string' ? parseInt(row.count) : (row.count || 0)
+    }));
+    
     // Get revenue by month for bar chart
-    const revenueByMonth = await db('orders')
+    const revenueByMonthRaw = await db('orders')
       .select(db.raw("TO_CHAR(created_at, 'YYYY-MM') as month"))
       .sum('total_amount as revenue')
       .where('created_at', '>=', sixMonthsAgo)
       .where('status', '!=', 'cancelled')
       .groupByRaw("TO_CHAR(created_at, 'YYYY-MM')")
       .orderBy('month', 'asc');
+    
+    const revenueByMonth = revenueByMonthRaw.map(row => ({
+      month: row.month,
+      revenue: parseFloat(row.revenue || 0)
+    }));
     
     // Calculate total revenue
     const totalRevenue = await db('orders')
@@ -103,17 +149,23 @@ const dashboard = async (req, res) => {
       .orderBy('total_quantity', 'desc')
       .limit(5);
     
+    // Parse count values (PostgreSQL returns as string)
+    const parseCount = (count) => {
+      if (!count) return 0;
+      return typeof count === 'string' ? parseInt(count) : (count || 0);
+    };
+    
     res.render('admin/dashboard', {
       title: 'Admin Dashboard',
-      productCount: productCount.count,
-      pendingOrdersCount: pendingOrdersCount.count,
-      totalOrdersCount: totalOrdersCount.count,
-      totalRevenue: totalRevenue.total || 0,
-      ordersByStatus: JSON.stringify(ordersByStatus),
-      productsByCategory: JSON.stringify(productsByCategory),
-      ordersByMonth: JSON.stringify(ordersByMonth),
-      revenueByMonth: JSON.stringify(revenueByMonth),
-      topProducts: JSON.stringify(topProducts)
+      productCount: parseCount(productCount?.count),
+      pendingOrdersCount: parseCount(pendingOrdersCount?.count),
+      totalOrdersCount: parseCount(totalOrdersCount?.count),
+      totalRevenue: parseFloat(totalRevenue?.total || 0),
+      ordersByStatus: ordersByStatus || [],
+      productsByCategory: productsByCategory || [],
+      ordersByMonth: ordersByMonth || [],
+      revenueByMonth: revenueByMonth || [],
+      topProducts: topProducts || []
     });
   } catch (error) {
     console.error('Dashboard error:', error);

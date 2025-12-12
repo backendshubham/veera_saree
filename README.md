@@ -1,26 +1,31 @@
-# Veera Sarees - Inventory & E-Commerce System
+# Veera Saree Center - Inventory & E-Commerce System
 
-A complete Node.js e-commerce system for managing saree inventory and online sales, built with Express.js, PostgreSQL, and EJS templates.
+A complete Node.js e-commerce system for managing clothing inventory and online sales, built with Express.js, PostgreSQL, and EJS templates.
 
 ## 🎯 Features
 
 ### Admin Panel
 - Secure admin login with session management
-- Dashboard with product and order statistics
+- Dashboard with product and order statistics (charts and graphs)
 - Complete CRUD operations for products
+- Category management system
 - Stock management
 - Order management with status updates
+- Customer address management in orders
 - Modern, responsive admin interface
 
 ### Customer Website
 - User registration and authentication
-- Product browsing with category filters
+- Product browsing with advanced filters (price range, category, sort)
+- Dynamic category filtering
 - Product detail pages with reviews
 - Shopping cart functionality
-- Checkout and order placement
+- Checkout with address collection
+- Cash on Delivery (COD) payment method
 - Order history tracking
 - Review system for products
-- Beautiful, modern UI matching Veera Sarees branding
+- Beautiful, modern UI matching Veera Saree Center branding
+- Mobile-responsive design with sticky filters
 
 ## 🛠️ Tech Stack
 
@@ -39,10 +44,10 @@ A complete Node.js e-commerce system for managing saree inventory and online sal
 
 ## 🚀 Installation & Setup
 
-### 1. Clone the repository
+### 1. Navigate to project directory
 
 ```bash
-cd veera
+cd "shubham collection"
 ```
 
 ### 2. Install dependencies
@@ -61,14 +66,16 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=your_password
-DB_NAME=veera_sarees
+DB_NAME=shubham_collection
 SESSION_SECRET=supersecret
 ```
+
+**Note:** The checkout page includes an interactive map for address selection using **OpenStreetMap** (completely free, no API key required). Users can click on the map or drag a marker to automatically fill in their address, city, state, and pincode.
 
 ### 4. Create PostgreSQL database
 
 ```sql
-CREATE DATABASE veera_sarees;
+CREATE DATABASE shubham_collection;
 ```
 
 ### 5. Run migrations
@@ -80,9 +87,10 @@ npm run migrate
 This will create all necessary tables:
 - `admins` - Admin users
 - `users` - Customer users
+- `categories` - Product categories
 - `products` - Product catalog
 - `cart` - Shopping cart items
-- `orders` - Customer orders
+- `orders` - Customer orders (with address fields)
 - `order_items` - Order line items
 - `reviews` - Product reviews
 
@@ -93,8 +101,8 @@ npm run seed
 ```
 
 This will create:
-- 1 admin user (email: `admin@veerasarees.com`, password: `admin123`)
-- 5 sample saree products
+- 1 admin user (email: `admin@shubhamcollection.com`, password: `admin123`)
+- Sample product categories (Jeans, Shirt, Sarees, Lehenga, Suits, etc.)
 
 ### 7. Start the development server
 
@@ -109,13 +117,13 @@ The server will start on `http://localhost:4000`
 - **Customer Website**: http://localhost:4000
 - **Admin Panel**: http://localhost:4000/admin/login
 - **Admin Credentials**:
-  - Email: `admin@veerasarees.com`
+  - Email: `admin@shubhamcollection.com`
   - Password: `admin123`
 
 ## 📁 Project Structure
 
 ```
-veera/
+shubham-collection/
 ├── app.js                 # Express app configuration
 ├── index.js               # Server entry point
 ├── knexfile.js           # Knex configuration
@@ -131,14 +139,24 @@ veera/
 │   └── validators.js     # Validation utilities
 │
 ├── middlewares/
-│   └── authMiddleware.js # Authentication middleware
+│   ├── authMiddleware.js # Authentication middleware
+│   └── csrfMiddleware.js # CSRF protection middleware
 │
 ├── migrations/           # Database migrations
 ├── seeds/               # Database seeds
 │
 └── src/
     ├── controllers/      # Route controllers
+    │   ├── admin.controller.js
+    │   ├── product.controller.js
+    │   ├── category.controller.js
+    │   ├── order.controller.js
+    │   └── user.controller.js
     ├── routes/          # Route definitions
+    │   ├── admin.routes.js
+    │   ├── product.routes.js
+    │   ├── order.routes.js
+    │   └── user.routes.js
     └── views/           # EJS templates
         ├── admin/       # Admin panel views
         ├── user/        # Customer website views
@@ -147,16 +165,17 @@ veera/
 
 ## 🎨 Theme & Design
 
-The application features a modern design inspired by Veera Sarees branding:
-- **Color Scheme**: Red (#d32f2f), Gold (#d4af37), Black (#1a1a1a)
-- **Typography**: Clean, modern sans-serif fonts
+The application features a modern design inspired by Veera Saree Center branding:
+- **Color Scheme**: Cream (#faf8f3), Ivory (#fffef9), Gold accents (#d4a574)
+- **Typography**: Playfair Display (headings) and Inter (body)
 - **Layout**: Responsive grid-based product display
-- **Features**: Hero section, category filters, sale badges, WhatsApp integration
+- **Features**: Hero section, advanced filters (price range, category, sort), sticky filters on mobile, sale badges, WhatsApp integration
 
 ## 🔐 Security Features
 
 - Password hashing with bcryptjs
 - Session-based authentication
+- CSRF protection
 - Protected admin routes
 - Input validation
 - SQL injection protection via Knex.js
@@ -175,37 +194,43 @@ The application features a modern design inspired by Veera Sarees branding:
 
 - **admins**: Admin user accounts
 - **users**: Customer accounts
-- **products**: Product catalog
+- **categories**: Product categories (managed from admin panel)
+- **products**: Product catalog (linked to categories)
 - **cart**: Shopping cart items
-- **orders**: Customer orders
+- **orders**: Customer orders (includes shipping address, city, state, pincode, phone)
 - **order_items**: Order line items
 - **reviews**: Product reviews and ratings
 
 ## 🛒 E-Commerce Features
 
 ### Customer Features
-- Browse products by category
+- Browse products by category (Jeans, Shirt, Sarees, Lehenga, Suits, etc.)
+- Advanced filtering (price range with dual-handle slider, category, sort order)
 - View product details
 - Add products to cart
 - Update cart quantities
+- Checkout with address collection
+- Cash on Delivery (COD) payment
 - Place orders
 - View order history
 - Submit product reviews
 
 ### Admin Features
+- Manage product categories (CRUD operations)
 - Manage product inventory
 - Update product details
 - Track stock levels
-- View all orders
+- View all orders with customer addresses
 - Update order status
-- Monitor sales statistics
+- Monitor sales statistics (dashboard with charts)
+- View customer contact information
 
 ## 🐛 Troubleshooting
 
 ### Database Connection Issues
 - Ensure PostgreSQL is running
 - Verify database credentials in `.env`
-- Check if database `veera_sarees` exists
+- Check if database `shubham_collection` exists
 
 ### Migration Errors
 - Ensure all previous migrations ran successfully
@@ -222,10 +247,27 @@ ISC
 ## 👥 Support
 
 For issues or questions, please contact:
-- Phone: +91 9310699832
-- Email: info@veerasarees.com
+- **Owner**: Deepak Rathore
+- **Phone**: +91 8305551215
+- **Address**: 122, Hatod, Indore, Madhya Pradesh 453111
 
 ---
 
-**Built with ❤️ for Veera Sarees**
+## 🆕 Recent Updates
+
+- ✅ Rebranded to "Veera Saree Center"
+- ✅ Expanded product categories beyond sarees (Jeans, Shirt, Sarees, Lehenga, Suits, etc.)
+- ✅ Added category management system in admin panel
+- ✅ Implemented advanced filters (price range, category, sort) with mobile-responsive sticky design
+- ✅ Added dual-handle price range slider
+- ✅ Enhanced checkout process with address collection
+- ✅ Added Cash on Delivery (COD) payment method notice
+- ✅ Improved mobile responsiveness across all pages
+- ✅ Added image placeholder for broken/null images
+- ✅ Added interactive map for address selection during checkout (Google Maps integration)
+- ✅ Enhanced admin dashboard with proper chart heights and data visualization
+
+---
+
+**Built with ❤️ for Veera Saree Center**
 

@@ -19,20 +19,27 @@
                         <% cartItems.forEach(item => { %>
                             <div class="row align-items-center mb-4 pb-4 border-bottom">
                                 <div class="col-md-2 col-4 mb-3 mb-md-0">
-                                    <img src="<%= item.image %>" alt="<%= item.title %>" 
-                                         class="img-fluid rounded" style="width: 100%; max-width: 100px; height: 100px; object-fit: cover;">
+                                    <img src="<%= item.image || '' %>" alt="<%= item.title %>" 
+                                         class="img-fluid rounded" style="width: 100%; max-width: 100px; height: 100px; object-fit: cover;" onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+Tm8gSW1hZ2UgQXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg==';">
                                 </div>
                                 <div class="col-md-4 col-8">
                                     <h6 class="mb-2"><%= item.title %></h6>
                                     <p class="text-muted mb-0 small">₹<%= item.price.toLocaleString('en-IN', {minimumFractionDigits: 2}) %> per unit</p>
                                 </div>
                                 <div class="col-md-3 col-6 mt-3 mt-md-0">
-                                    <label class="form-label small">Quantity</label>
-                                    <form action="/cart/<%= item.id %>/update" method="POST" class="d-inline">
+                                    <label class="form-label small mb-2 d-block">Quantity</label>
+                                    <form action="/cart/<%= item.id %>/update" method="POST" class="d-inline" id="updateCartForm<%= item.id %>">
                                         <%- include('../partials/csrf-token') %>
-                                        <input type="number" name="quantity" value="<%= item.quantity %>" 
-                                               min="1" max="<%= item.stock %>" class="form-control" 
-                                               style="width: 100%; max-width: 100px;" onchange="this.form.submit()">
+                                        <input type="hidden" name="quantity" value="<%= item.quantity %>" id="cartQuantityInput<%= item.id %>">
+                                        <div class="quantity-controls d-flex align-items-center">
+                                            <button type="button" class="btn btn-outline-secondary quantity-btn" onclick="decreaseCartQuantity(<%= item.id %>, <%= item.stock %>)">
+                                                <i class="bi bi-dash"></i>
+                                            </button>
+                                            <input type="number" class="form-control text-center quantity-display" value="<%= item.quantity %>" min="1" max="<%= item.stock %>" id="cartQuantityDisplay<%= item.id %>" readonly>
+                                            <button type="button" class="btn btn-outline-secondary quantity-btn" onclick="increaseCartQuantity(<%= item.id %>, <%= item.stock %>)">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                        </div>
                                     </form>
                                 </div>
                                 <div class="col-md-2 col-4 text-start text-md-end mt-3 mt-md-0">
@@ -69,12 +76,9 @@
                             <h5>Total:</h5>
                             <h5 class="text-primary">₹<%= total.toLocaleString('en-IN', {minimumFractionDigits: 2}) %></h5>
                         </div>
-                        <form action="/orders/checkout" method="POST">
-                            <%- include('../partials/csrf-token') %>
-                            <button type="submit" class="btn btn-gradient-modern w-100 btn-lg py-3 mb-3" style="border: none; border-radius: 12px; font-weight: 600; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s; color: white !important;">
-                                <i class="bi bi-bag-check"></i> Proceed to Checkout
-                            </button>
-                        </form>
+                        <a href="/orders/checkout" class="btn btn-gradient-modern w-100 btn-lg py-3 mb-3" style="border: none; border-radius: 12px; font-weight: 600; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s; color: white !important; text-decoration: none; display: block; text-align: center;">
+                            <i class="bi bi-bag-check"></i> Proceed to Checkout
+                        </a>
                         <a href="/collections" class="btn btn-light-modern w-100">
                             <i class="bi bi-arrow-left"></i> Continue Shopping
                         </a>
@@ -95,6 +99,39 @@
         </div>
     <% } %>
 </div>
+
+<script>
+    // Cart quantity control functions
+    function increaseCartQuantity(itemId, maxStock) {
+        const display = document.getElementById('cartQuantityDisplay' + itemId);
+        const input = document.getElementById('cartQuantityInput' + itemId);
+        const form = document.getElementById('updateCartForm' + itemId);
+        if (display && input && form) {
+            let currentValue = parseInt(display.value) || 1;
+            if (currentValue < maxStock) {
+                currentValue++;
+                display.value = currentValue;
+                input.value = currentValue;
+                form.submit();
+            }
+        }
+    }
+    
+    function decreaseCartQuantity(itemId, maxStock) {
+        const display = document.getElementById('cartQuantityDisplay' + itemId);
+        const input = document.getElementById('cartQuantityInput' + itemId);
+        const form = document.getElementById('updateCartForm' + itemId);
+        if (display && input && form) {
+            let currentValue = parseInt(display.value) || 1;
+            if (currentValue > 1) {
+                currentValue--;
+                display.value = currentValue;
+                input.value = currentValue;
+                form.submit();
+            }
+        }
+    }
+</script>
 
 <%- include('../partials/footer') %>
 

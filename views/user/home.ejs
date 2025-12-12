@@ -21,14 +21,20 @@
     <div class="carousel-inner">
         <!-- Slide 1 -->
         <div class="carousel-item active">
-            <div class="hero-slide hero-slide-1">
-                <div class="container">
+            <div class="hero-slide hero-slide-1" style="position: relative; overflow: hidden;">
+                <!-- Background Video -->
+                <video autoplay muted loop playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;">
+                    <source src="/assets/background.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <!-- Content -->
+                <div class="container" style="position: relative; z-index: 2;">
                     <div class="row align-items-center justify-content-center min-vh-50">
                         <div class="col-lg-10 text-center hero-content">
                             <div class="hero-text-box">
                                 <h1 class="hero-title">Tissue that lights the room</h1>
                                 <p class="hero-subtitle">Featherweight shimmer for evening and glamorous days</p>
-                                <p class="hero-description">Experience the luxury of premium tissue sarees that capture every ray of light, creating an ethereal glow that makes you the center of attention. Perfect for special occasions, celebrations, and moments when you want to shine.</p>
+                                <p class="hero-description">Experience the luxury of premium clothing that captures every ray of light, creating an ethereal glow that makes you the center of attention. Perfect for special occasions, celebrations, and moments when you want to shine.</p>
                                 <div class="text-center mt-4">
                                     <a href="/collections" class="shop-now-btn">SHOP NOW</a>
                                 </div>
@@ -41,16 +47,22 @@
         
         <!-- Slide 2 -->
         <div class="carousel-item">
-            <div class="hero-slide hero-slide-2">
-                <div class="container">
+            <div class="hero-slide hero-slide-2" style="position: relative; overflow: hidden;">
+                <!-- Background Video -->
+                <video autoplay muted loop playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;">
+                    <source src="/assets/background.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <!-- Content -->
+                <div class="container" style="position: relative; z-index: 2;">
                     <div class="row align-items-center justify-content-center min-vh-50">
                         <div class="col-lg-10 text-center hero-content">
                             <div class="hero-text-box">
                                 <h1 class="hero-title">Timeless Elegance</h1>
-                                <p class="hero-subtitle">Discover our exquisite collection of traditional and modern sarees</p>
-                                <p class="hero-description">From classic silk weaves to contemporary designs, our collection celebrates the rich heritage of Indian textiles. Each piece is carefully curated to bring you the finest quality fabrics that blend tradition with modern sophistication.</p>
+                                <p class="hero-subtitle">Discover our exquisite collection of traditional and modern clothing</p>
+                                <p class="hero-description">From classic designs to contemporary styles, our collection celebrates the rich heritage of fashion. Each piece is carefully curated to bring you the finest quality that blends tradition with modern sophistication.</p>
                                 <div class="text-center mt-4">
-                                    <a href="/collections?category=Silk" class="shop-now-btn">EXPLORE COLLECTION</a>
+                                    <a href="/collections" class="shop-now-btn">EXPLORE COLLECTION</a>
                                 </div>
                             </div>
                         </div>
@@ -61,16 +73,22 @@
         
         <!-- Slide 3 -->
         <div class="carousel-item">
-            <div class="hero-slide hero-slide-3">
-                <div class="container">
+            <div class="hero-slide hero-slide-3" style="position: relative; overflow: hidden;">
+                <!-- Background Video -->
+                <video autoplay muted loop playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;">
+                    <source src="/assets/background.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <!-- Content -->
+                <div class="container" style="position: relative; z-index: 2;">
                     <div class="row align-items-center justify-content-center min-vh-50">
                         <div class="col-lg-10 text-center hero-content">
                             <div class="hero-text-box">
                                 <h1 class="hero-title">Festive Collection</h1>
-                                <p class="hero-subtitle">Celebrate every occasion with our stunning festive sarees</p>
-                                <p class="hero-description">Make every celebration memorable with our exclusive festive collection. Featuring vibrant colors, intricate embroideries, and luxurious fabrics, these sarees are designed to make you feel extraordinary on your special days.</p>
+                                <p class="hero-subtitle">Celebrate every occasion with our stunning festive collection</p>
+                                <p class="hero-description">Make every celebration memorable with our exclusive festive collection. Featuring vibrant colors, intricate embroideries, and luxurious fabrics, these pieces are designed to make you feel extraordinary on your special days.</p>
                                 <div class="text-center mt-4">
-                                    <a href="/collections?category=Chiffon" class="shop-now-btn">SHOP FESTIVE</a>
+                                    <a href="/collections" class="shop-now-btn">SHOP FESTIVE</a>
                                 </div>
                             </div>
                         </div>
@@ -96,13 +114,25 @@
     <!-- Category Filter -->
     <div class="text-center mb-5">
         <a href="/collections" class="category-filter-btn <%= selectedCategory === 'all' ? 'active' : '' %>">All</a>
-        <a href="/collections?category=Silk" class="category-filter-btn <%= selectedCategory === 'Silk' ? 'active' : '' %>">Silk Collection</a>
-        <a href="/collections?category=Cotton" class="category-filter-btn <%= selectedCategory === 'Cotton' ? 'active' : '' %>">Cotton</a>
-        <a href="/collections?category=Chiffon" class="category-filter-btn <%= selectedCategory === 'Chiffon' ? 'active' : '' %>">Chiffon</a>
-        <a href="/collections?category=Georgette" class="category-filter-btn <%= selectedCategory === 'Georgette' ? 'active' : '' %>">Georgette</a>
+        <% const commonCategories = ['Jeans', 'Shirt', 'Sarees', 'Lehenga', 'Suits']; %>
+        <% if (categories && categories.includes('Jeans')) { %>
+            <a href="/collections?category=Jeans" class="category-filter-btn <%= selectedCategory === 'Jeans' ? 'active' : '' %>">Jeans</a>
+        <% } %>
+        <% if (categories && categories.includes('Shirt')) { %>
+            <a href="/collections?category=Shirt" class="category-filter-btn <%= selectedCategory === 'Shirt' ? 'active' : '' %>">Shirt</a>
+        <% } %>
+        <% if (categories && categories.includes('Sarees')) { %>
+            <a href="/collections?category=Sarees" class="category-filter-btn <%= selectedCategory === 'Sarees' ? 'active' : '' %>">Sarees</a>
+        <% } %>
+        <% if (categories && categories.includes('Lehenga')) { %>
+            <a href="/collections?category=Lehenga" class="category-filter-btn <%= selectedCategory === 'Lehenga' ? 'active' : '' %>">Lehenga</a>
+        <% } %>
+        <% if (categories && categories.includes('Suits')) { %>
+            <a href="/collections?category=Suits" class="category-filter-btn <%= selectedCategory === 'Suits' ? 'active' : '' %>">Suits</a>
+        <% } %>
         <% if (categories && categories.length > 0) { %>
             <% categories.forEach(cat => { %>
-                <% if (!['Silk', 'Cotton', 'Chiffon', 'Georgette'].includes(cat)) { %>
+                <% if (!commonCategories.includes(cat)) { %>
                     <a href="/collections?category=<%= cat %>" class="category-filter-btn <%= selectedCategory === cat ? 'active' : '' %>">
                         <%= cat %>
                     </a>
@@ -131,7 +161,7 @@
                                 </div>
                             <% } %>
                             <a href="/products/<%= product.id %>">
-                                <img src="<%= product.image %>" class="card-img-top" alt="<%= product.title %>" style="height: 380px; object-fit: cover; width: 100%;">
+                                <img src="<%= product.image || '' %>" class="card-img-top" alt="<%= product.title %>" style="height: 380px; object-fit: cover; width: 100%;" onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+Tm8gSW1hZ2UgQXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg==';">
                             </a>
                         </div>
                         <div class="card-body d-flex flex-column p-3">
@@ -162,7 +192,7 @@
                                 <div class="mt-1">
                                     <span class="current-price">Rs. <%= product.price.toLocaleString('en-IN', {minimumFractionDigits: 2}) %></span>
                                     <% if (product.discount_percentage && product.discount_percentage > 0) { %>
-                                        <span class="discount-badge">(-<%= product.discount_percentage %>%)</span>
+                                        <span class="discount-badge"><%= product.discount_percentage %>% OFF</span>
                                     <% } %>
                                 </div>
                             </div>
@@ -172,7 +202,7 @@
                                         VIEW DETAILS
                                     </a>
                                     <% if (typeof userId !== 'undefined' && userId) { %>
-                                        <form action="/cart/add" method="POST" class="d-inline w-100">
+                                        <form action="/cart/add" method="POST" class="d-inline w-100" id="addToCartForm<%= product.id %>">
                                             <%- include('../partials/csrf-token') %>
                                             <input type="hidden" name="productId" value="<%= product.id %>">
                                             <input type="hidden" name="quantity" value="1">
@@ -230,7 +260,7 @@
                     </div>
                     <div class="col-md-7">
                         <div id="modalProductImage" class="mb-3" style="text-align: center;">
-                            <img id="modalProductImg" src="" alt="Product" style="max-width: 100%; height: 200px; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                            <img id="modalProductImg" src="" alt="Product" style="max-width: 100%; height: 200px; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+Tm8gSW1hZ2UgQXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg==';">
                         </div>
                         <h4 id="modalProductTitle" style="font-weight: 700; color: var(--veera-text); margin-bottom: 15px;"></h4>
                         <div class="mb-3">
@@ -270,7 +300,11 @@
         document.getElementById('modalProductTitle').textContent = product.title;
         document.getElementById('modalProductCategory').textContent = product.category;
         document.getElementById('modalProductDescription').textContent = product.description;
-        document.getElementById('modalProductImg').src = product.image;
+        const modalImg = document.getElementById('modalProductImg');
+        modalImg.src = product.image || '';
+        if (!product.image) {
+            modalImg.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+Tm8gSW1hZ2UgQXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg==';
+        }
         document.getElementById('modalViewDetailsLink').href = '/products/' + product.id;
         document.getElementById('modalQRCodeNumber').textContent = qrCodeNumber || product.qr_code;
         
@@ -339,6 +373,8 @@
         const modal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
         modal.show();
     }
+    
+    // Quantity control functions
 </script>
 
 <%- include('../partials/footer') %>
