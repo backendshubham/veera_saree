@@ -1,7 +1,7 @@
 {
-  "name": "veera-sarees",
+  "name": "shubham-collection",
   "version": "1.0.0",
-  "description": "Veera Sarees Inventory & E-Commerce System",
+  "description": "Veera Saree Center Inventory & E-Commerce System",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
@@ -13,7 +13,7 @@
   },
   "keywords": [
     "ecommerce",
-    "sarees",
+    "clothing",
     "inventory"
   ],
   "author": "",

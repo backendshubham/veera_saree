@@ -1,22 +1,621 @@
 <%- include('../partials/header') %>
 <%- include('../partials/navbar', { userId: typeof userId !== 'undefined' ? userId : null, userName: typeof userName !== 'undefined' ? userName : null }) %>
 
-<div class="container mt-4">
-    <h1 class="mb-4">Checkout</h1>
-    <p class="text-muted">This is a simplified checkout. In a real application, you would collect shipping and payment information here.</p>
+<style>
+    /* Order Status Timeline Styles */
+    .order-status-timeline {
+        padding: 10px 0;
+    }
+    .status-timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    .status-item {
+        position: relative;
+        padding-bottom: 20px;
+        display: flex;
+        align-items: flex-start;
+    }
+    .status-item:last-child {
+        padding-bottom: 0;
+    }
+    .status-item:last-child .status-line {
+        display: none;
+    }
+    .status-dot {
+        position: absolute;
+        left: -30px;
+        top: 3px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #dee2e6;
+        border: 2px solid #fff;
+        z-index: 2;
+        transition: all 0.3s ease;
+    }
+    .status-item.active .status-dot {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+    }
+    .status-item.current .status-dot {
+        background-color: #198754;
+        border-color: #198754;
+        box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.2);
+        width: 14px;
+        height: 14px;
+        left: -31px;
+        top: 2px;
+    }
+    .status-line {
+        position: absolute;
+        left: -25px;
+        top: 15px;
+        width: 2px;
+        height: calc(100% - 5px);
+        background-color: #dee2e6;
+        z-index: 1;
+    }
+    .status-item.active .status-line {
+        background-color: #0d6efd;
+    }
+    .status-item.current .status-line {
+        background-color: #198754;
+    }
+    .status-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    .status-item.active .status-label {
+        color: #495057;
+        font-weight: 600;
+    }
+    .status-item.current .status-label {
+        color: #198754;
+        font-weight: 700;
+    }
     
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i> Click "Place Order" to complete your purchase.
+    @media (max-width: 768px) {
+        .status-timeline {
+            padding-left: 25px;
+        }
+        .status-dot {
+            left: -25px;
+            width: 10px;
+            height: 10px;
+        }
+        .status-item.current .status-dot {
+            width: 12px;
+            height: 12px;
+            left: -26px;
+        }
+        .status-line {
+            left: -21px;
+        }
+        .status-label {
+            font-size: 0.85rem;
+        }
+        #map {
+            height: 250px !important;
+        }
+    }
+    
+    /* Map Styles */
+    #map {
+        position: relative;
+    }
+    .map-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    /* Leaflet Map Styles */
+    .leaflet-container {
+        border-radius: 8px;
+        z-index: 1;
+    }
+    .leaflet-popup-content-wrapper {
+        border-radius: 8px;
+    }
+    .custom-marker-icon {
+        background-color: #d32f2f;
+        border: 3px solid white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+</style>
+
+<div class="container my-5">
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <h2 class="mb-4"><i class="bi bi-geo-alt"></i> Shipping Address</h2>
+                    
+                    <form action="/orders/checkout" method="POST" id="checkoutForm">
+                        <%- include('../partials/csrf-token') %>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_name" class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="customer_name" name="customer_name" 
+                                       value="<%= typeof userName !== 'undefined' ? userName : '' %>" required>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_phone" class="form-label fw-semibold">Phone Number <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text" style="background: #f8f9fa; border-right: none;"><i class="bi bi-telephone"></i></span>
+                                    <span class="input-group-text" style="background: #f8f9fa; border-left: none; border-right: none; color: var(--veera-gray); font-weight: 500;">+91</span>
+                                    <input type="tel" class="form-control" id="customer_phone" name="customer_phone" 
+                                           pattern="[0-9]{10}" 
+                                           maxlength="10" 
+                                           placeholder="Enter 10 digit number"
+                                           style="border-left: none; padding-left: 0;"
+                                           required
+                                           oninput="this.value = this.value.replace(/[^0-9]/g, '');">
+                                </div>
+                                <small class="text-muted">Enter 10 digit mobile number</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Map Section for Address Selection -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold mb-2">
+                                <i class="bi bi-map"></i> Select Location on Map <span class="text-danger">*</span>
+                            </label>
+                            
+                            <!-- Map Search Box -->
+                            <div class="position-relative mb-3">
+                                <div class="input-group">
+                                    <span class="input-group-text" style="background: #f8f9fa;">
+                                        <i class="bi bi-search"></i>
+                                    </span>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="mapSearch" 
+                                           placeholder="Search for address, city, landmark, or pincode..."
+                                           autocomplete="off">
+                                    <button class="btn btn-primary" type="button" id="searchBtn">
+                                        <i class="bi bi-search"></i> Search
+                                    </button>
+                                </div>
+                                <div id="searchResults" class="list-group" style="position: absolute; z-index: 1000; max-height: 200px; overflow-y: auto; display: none; width: 100%; top: 100%; margin-top: 2px;"></div>
+                            </div>
+                            
+                            <div id="map" style="width: 100%; height: 300px; border-radius: 8px; border: 2px solid #dee2e6; margin-bottom: 10px; z-index: 1;"></div>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i> Search for a location or click on the map/drag the marker to select your delivery address
+                            </small>
+                            <input type="hidden" id="selected_lat" name="latitude">
+                            <input type="hidden" id="selected_lng" name="longitude">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="shipping_address" class="form-label fw-semibold">Complete Address <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="shipping_address" name="shipping_address" rows="3" 
+                                      placeholder="House/Flat No., Street, Area, Landmark" required></textarea>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="city" class="form-label fw-semibold">City <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="city" name="city" required>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="state" class="form-label fw-semibold">State <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="state" name="state" required>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="pincode" class="form-label fw-semibold">Pincode <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="pincode" name="pincode" 
+                                       pattern="[0-9]{6}" placeholder="6 digit pincode" required>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning mt-4">
+                            <h5 class="alert-heading"><i class="bi bi-cash-coin"></i> Payment Method</h5>
+                            <p class="mb-0"><strong>Cash on Delivery (COD)</strong> - Pay when you receive your order.</p>
+                            <small>No advance payment required. Payment will be collected at the time of delivery.</small>
+                        </div>
+                        
+                        <div class="d-flex gap-3 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg flex-fill">
+                                <i class="bi bi-check-circle"></i> Place Order
+                            </button>
+                            <a href="/cart" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-arrow-left"></i> Back to Cart
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0" style="position: sticky; top: 20px;">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-4"><i class="bi bi-receipt"></i> Order Summary</h5>
+                    
+                    <!-- Order Status (Pending - Before Placement) -->
+                    <div class="order-status-timeline mb-4">
+                        <h6 class="fw-semibold mb-3">Order Status</h6>
+                        <div class="status-timeline">
+                            <div class="status-item active current">
+                                <div class="status-dot"></div>
+                                <div class="status-line"></div>
+                                <div class="status-label">Pending</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-dot"></div>
+                                <div class="status-line"></div>
+                                <div class="status-label">Placed</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-dot"></div>
+                                <div class="status-line"></div>
+                                <div class="status-label">Shipped</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-dot"></div>
+                                <div class="status-label">Delivered</div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr class="mb-4">
+                    
+                    <% if (typeof cartItems !== 'undefined' && cartItems.length > 0) { %>
+                        <% let subtotal = 0; %>
+                        <% cartItems.forEach(item => { %>
+                            <% subtotal += parseFloat(item.price) * item.quantity; %>
+                            <div class="d-flex justify-content-between mb-3 pb-3 border-bottom">
+                                <div>
+                                    <strong><%= item.title %></strong>
+                                    <br>
+                                    <small class="text-muted">Qty: <%= item.quantity %> × ₹<%= item.price.toLocaleString('en-IN', {minimumFractionDigits: 2}) %></small>
+                                </div>
+                                <strong>₹<%= (parseFloat(item.price) * item.quantity).toLocaleString('en-IN', {minimumFractionDigits: 2}) %></strong>
+                            </div>
+                        <% }); %>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>Subtotal:</span>
+                            <strong>₹<%= subtotal.toLocaleString('en-IN', {minimumFractionDigits: 2}) %></strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>Shipping:</span>
+                            <span class="text-success">FREE</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-0">
+                            <h5>Total:</h5>
+                            <h5 class="text-primary">₹<%= subtotal.toLocaleString('en-IN', {minimumFractionDigits: 2}) %></h5>
+                        </div>
+                    <% } else { %>
+                        <p class="text-muted">No items in cart</p>
+                    <% } %>
+                </div>
+            </div>
+        </div>
     </div>
-    
-    <form action="/orders/checkout" method="POST">
-        <%- include('../partials/csrf-token') %>
-        <button type="submit" class="btn btn-primary btn-lg">
-            <i class="bi bi-check-circle"></i> Place Order
-        </button>
-        <a href="/cart" class="btn btn-secondary btn-lg">Back to Cart</a>
-    </form>
 </div>
+
+<script>
+    // Phone number validation
+    const phoneInput = document.getElementById('customer_phone');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function(e) {
+            // Remove any non-digit characters
+            this.value = this.value.replace(/[^0-9]/g, '');
+            
+            // Limit to 10 digits
+            if (this.value.length > 10) {
+                this.value = this.value.slice(0, 10);
+            }
+        });
+        
+        phoneInput.addEventListener('blur', function(e) {
+            if (this.value.length !== 10 && this.value.length > 0) {
+                this.setCustomValidity('Phone number must be exactly 10 digits');
+                this.reportValidity();
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+        
+        // Pincode validation
+        const pincodeInput = document.getElementById('pincode');
+        if (pincodeInput) {
+            pincodeInput.addEventListener('input', function(e) {
+                // Remove any non-digit characters
+                this.value = this.value.replace(/[^0-9]/g, '');
+                
+                // Limit to 6 digits
+                if (this.value.length > 6) {
+                    this.value = this.value.slice(0, 6);
+                }
+            });
+        }
+        
+        // Form submission validation
+        const form = document.getElementById('checkoutForm');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const phone = phoneInput.value.replace(/\D/g, '');
+                if (phone.length !== 10) {
+                    e.preventDefault();
+                    phoneInput.setCustomValidity('Phone number must be exactly 10 digits');
+                    phoneInput.reportValidity();
+                    phoneInput.focus();
+                    return false;
+                }
+                
+                const pincode = pincodeInput ? pincodeInput.value.replace(/\D/g, '') : '';
+                if (pincode && pincode.length !== 6) {
+                    e.preventDefault();
+                    pincodeInput.setCustomValidity('Pincode must be exactly 6 digits');
+                    pincodeInput.reportValidity();
+                    pincodeInput.focus();
+                    return false;
+                }
+            });
+        }
+    }
+</script>
+
+<!-- Leaflet CSS (Free OpenStreetMap) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<!-- Leaflet JavaScript -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Nominatim Geocoding (Free) -->
+<script src="https://unpkg.com/es6-promise@4.2.8/dist/es6-promise.auto.min.js"></script>
+
+<script>
+    let map;
+    let marker;
+    let isMapInitialized = false;
+    
+    // Initialize map when page loads
+    window.addEventListener('load', function() {
+        initMap();
+    });
+    
+    function initMap() {
+        // Default location (Indore, Madhya Pradesh, India)
+        const defaultLocation = [22.7196, 75.8577];
+        
+        // Initialize map
+        map = L.map('map').setView(defaultLocation, 13);
+        
+        // Add OpenStreetMap tiles (free)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // Create custom marker icon
+        const customIcon = L.divIcon({
+            className: 'custom-marker-icon',
+            html: '<div style="width: 100%; height: 100%; background-color: #d32f2f; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+        
+        // Create marker
+        marker = L.marker(defaultLocation, {
+            draggable: true,
+            icon: customIcon
+        }).addTo(map);
+        
+        // Get address for initial location
+        geocodePosition(defaultLocation[0], defaultLocation[1]);
+        
+        // Listen for marker drag end
+        marker.on('dragend', function(e) {
+            const position = marker.getLatLng();
+            geocodePosition(position.lat, position.lng);
+        });
+        
+        // Listen for map clicks
+        map.on('click', function(e) {
+            const clickedLocation = [e.latlng.lat, e.latlng.lng];
+            marker.setLatLng(clickedLocation);
+            geocodePosition(clickedLocation[0], clickedLocation[1]);
+        });
+        
+        // Try to get user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const userLocation = [position.coords.latitude, position.coords.longitude];
+                    map.setView(userLocation, 15);
+                    marker.setLatLng(userLocation);
+                    geocodePosition(userLocation[0], userLocation[1]);
+                },
+                function(error) {
+                    console.log('Geolocation error:', error);
+                    // Keep default location
+                }
+            );
+        }
+        
+        isMapInitialized = true;
+        
+        // Setup search functionality
+        setupMapSearch();
+    }
+    
+    // Setup map search functionality
+    function setupMapSearch() {
+        const searchInput = document.getElementById('mapSearch');
+        const searchBtn = document.getElementById('searchBtn');
+        const searchResults = document.getElementById('searchResults');
+        let searchTimeout;
+        
+        // Search on button click
+        searchBtn.addEventListener('click', function() {
+            performSearch(searchInput.value);
+        });
+        
+        // Search on Enter key
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch(searchInput.value);
+            }
+        });
+        
+        // Show/hide results on focus/blur
+        searchInput.addEventListener('focus', function() {
+            if (searchResults.innerHTML.trim() !== '') {
+                searchResults.style.display = 'block';
+            }
+        });
+        
+        // Hide results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target) && !searchBtn.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
+        });
+        
+        // Perform search function
+        function performSearch(query) {
+            if (!query || query.trim() === '') {
+                searchResults.style.display = 'none';
+                return;
+            }
+            
+            // Show loading
+            searchResults.innerHTML = '<div class="list-group-item text-center"><small class="text-muted">Searching...</small></div>';
+            searchResults.style.display = 'block';
+            
+            // Use Nominatim search API (free) - prioritize India results
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1&countrycodes=in`, {
+                headers: {
+                    'User-Agent': 'VeeraSareeCenter/1.0'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        searchResults.innerHTML = '';
+                        data.forEach((result, index) => {
+                            const item = document.createElement('a');
+                            item.className = 'list-group-item list-group-item-action';
+                            item.innerHTML = `
+                                <div class="search-result-name">
+                                    <i class="bi bi-geo-alt-fill text-primary"></i> ${result.display_name}
+                                </div>
+                                <div class="search-result-address">
+                                    ${result.address ? (result.address.city || result.address.town || result.address.village || '') : ''}
+                                </div>
+                            `;
+                            item.addEventListener('click', function() {
+                                const lat = parseFloat(result.lat);
+                                const lng = parseFloat(result.lon);
+                                
+                                // Center map on selected location
+                                map.setView([lat, lng], 16);
+                                marker.setLatLng([lat, lng]);
+                                
+                                // Geocode to get full address details
+                                geocodePosition(lat, lng);
+                                
+                                // Hide search results
+                                searchResults.style.display = 'none';
+                                searchInput.value = result.display_name;
+                            });
+                            searchResults.appendChild(item);
+                        });
+                    } else {
+                        searchResults.innerHTML = '<div class="list-group-item text-center"><small class="text-muted">No results found</small></div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    searchResults.innerHTML = '<div class="list-group-item text-center"><small class="text-danger">Error searching. Please try again.</small></div>';
+                });
+        }
+    }
+    
+    // Geocode position to get address (using Nominatim - free)
+    function geocodePosition(lat, lng) {
+        // Update hidden fields
+        document.getElementById('selected_lat').value = lat;
+        document.getElementById('selected_lng').value = lng;
+        
+        // Show loading indicator
+        const addressField = document.getElementById('shipping_address');
+        if (addressField) {
+            addressField.placeholder = 'Loading address...';
+        }
+        
+        // Use Nominatim for reverse geocoding (free, no API key required)
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+            headers: {
+                'User-Agent': 'VeeraSareeCenter/1.0'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.address) {
+                    const addr = data.address;
+                    let fullAddress = data.display_name || '';
+                    let city = addr.city || addr.town || addr.village || addr.county || addr.municipality || '';
+                    let state = addr.state || '';
+                    let pincode = addr.postcode || '';
+                    
+                    // Get form fields
+                    const cityField = document.getElementById('city');
+                    const stateField = document.getElementById('state');
+                    const pincodeField = document.getElementById('pincode');
+                    
+                    // Always update fields when location is selected on map
+                    if (addressField) {
+                        addressField.value = fullAddress.trim();
+                        addressField.placeholder = 'House/Flat No., Street, Area, Landmark';
+                    }
+                    
+                    if (cityField) {
+                        cityField.value = city;
+                    }
+                    
+                    if (stateField) {
+                        stateField.value = state;
+                    }
+                    
+                    if (pincodeField) {
+                        pincodeField.value = pincode;
+                    }
+                    
+                    // Show popup with address
+                    marker.bindPopup(`<strong>Selected Location</strong><br>${fullAddress}`).openPopup();
+                } else {
+                    // If no address found, show error
+                    if (addressField) {
+                        addressField.placeholder = 'Address not found. Please enter manually.';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Geocoding error:', error);
+                if (addressField) {
+                    addressField.placeholder = 'Error loading address. Please enter manually.';
+                }
+            });
+    }
+</script>
 
 <%- include('../partials/footer') %>
 

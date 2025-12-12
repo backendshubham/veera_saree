@@ -14,6 +14,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // Session configuration
 app.use(session({
@@ -65,6 +66,7 @@ app.use('/admin', require('./src/routes/admin.routes'));
 app.use('/products', require('./src/routes/product.routes'));
 app.use('/cart', require('./src/routes/cart.routes'));
 app.use('/orders', require('./src/routes/order.routes'));
+app.use('/', require('./src/routes/user.routes'));
 
 // Home route
 app.get('/', async (req, res) => {
@@ -82,6 +84,17 @@ app.get('/collections', async (req, res) => {
 app.get('/catalog', async (req, res) => {
   const productController = require('./src/controllers/product.controller');
   await productController.getCatalogPage(req, res);
+});
+
+// API routes for infinite scroll
+app.get('/api/collections', async (req, res) => {
+  const productController = require('./src/controllers/product.controller');
+  await productController.getMoreCollections(req, res);
+});
+
+app.get('/api/catalog', async (req, res) => {
+  const productController = require('./src/controllers/product.controller');
+  await productController.getMoreCatalog(req, res);
 });
 
 // 404 handler

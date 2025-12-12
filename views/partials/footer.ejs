@@ -3,7 +3,8 @@
         <div class="row">
             <div class="col-md-4 mb-3">
                 <h5><strong>VEERA SAREE CENTER</strong></h5>
-                <p>Your trusted destination for authentic and beautiful sarees.</p>
+                <p>Your trusted destination for authentic and beautiful clothing.</p>
+                <p class="mb-0 mt-2"><i class="bi bi-geo-alt"></i> 122, Hatod, Indore, Madhya Pradesh 453111</p>
             </div>
             <div class="col-md-4 mb-3">
                 <h5>Quick Links</h5>
@@ -15,13 +16,15 @@
             </div>
             <div class="col-md-4 mb-3">
                 <h5>Contact</h5>
-                <p class="mb-0">Phone: +91 8305551215</p>
-                <p class="mb-0">Email: info@veerasarees.com</p>
+                <p class="mb-0"><i class="bi bi-telephone"></i> Phone: +91 8305551215</p>
+                <p class="mb-0 mt-2"><i class="bi bi-person"></i> Owner: Deepak Rathore</p>
+                <p class="mb-0"><i class="bi bi-envelope"></i> Email: veerasareecenter@gmail.com</p>
+                <p class="mb-0 mt-2"><i class="bi bi-geo-alt"></i> 122, Hatod, Indore, Madhya Pradesh 453111</p>
             </div>
         </div>
         <hr style="border-color: rgba(255,255,255,0.2);">
         <div class="text-center">
-            <p class="mb-0">&copy; 2024 Veera Sarees. All rights reserved.</p>
+            <p class="mb-0">&copy; 2024 Veera Saree Center. All rights reserved.</p>
         </div>
     </div>
 </footer>
@@ -32,6 +35,98 @@
 </a>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Image Placeholder Handler -->
+<script>
+    // Create a placeholder image (SVG data URI)
+    const placeholderImage = 'data:image/svg+xml;base64,' + btoa(`
+        <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100%" height="100%" fill="#f0f0f0"/>
+            <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="18" fill="#999" text-anchor="middle" dominant-baseline="middle">
+                No Image Available
+            </text>
+        </svg>
+    `);
+    
+    // Function to handle broken images
+    function handleImageError(img) {
+        if (img.src !== placeholderImage) {
+            img.src = placeholderImage;
+            img.onerror = null; // Prevent infinite loop
+            img.style.backgroundColor = '#f0f0f0';
+            img.style.display = 'block';
+        }
+    }
+    
+    // Function to get safe image source (handles null/empty)
+    function getSafeImageSrc(imageSrc) {
+        if (!imageSrc || imageSrc === 'null' || imageSrc === 'undefined' || imageSrc.trim() === '') {
+            return placeholderImage;
+        }
+        return imageSrc;
+    }
+    
+    // Apply to all existing images on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const images = document.querySelectorAll('img');
+        images.forEach(function(img) {
+            // Handle null/empty src
+            if (!img.src || img.src === 'null' || img.src === 'undefined' || img.getAttribute('src') === '' || !img.getAttribute('src')) {
+                img.src = placeholderImage;
+            }
+            
+            // Add error handler if not already present
+            if (!img.hasAttribute('data-placeholder-handled')) {
+                img.setAttribute('data-placeholder-handled', 'true');
+                img.addEventListener('error', function() {
+                    handleImageError(this);
+                });
+            }
+        });
+    });
+    
+    // Also handle dynamically added images
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) { // Element node
+                    if (node.tagName === 'IMG') {
+                        if (!node.src || node.src === 'null' || node.getAttribute('src') === '' || !node.getAttribute('src')) {
+                            node.src = placeholderImage;
+                        }
+                        if (!node.hasAttribute('data-placeholder-handled')) {
+                            node.setAttribute('data-placeholder-handled', 'true');
+                            node.addEventListener('error', function() {
+                                handleImageError(this);
+                            });
+                        }
+                    }
+                    // Also check for images inside added nodes
+                    const images = node.querySelectorAll && node.querySelectorAll('img');
+                    if (images) {
+                        images.forEach(function(img) {
+                            if (!img.src || img.src === 'null' || img.getAttribute('src') === '' || !img.getAttribute('src')) {
+                                img.src = placeholderImage;
+                            }
+                            if (!img.hasAttribute('data-placeholder-handled')) {
+                                img.setAttribute('data-placeholder-handled', 'true');
+                                img.addEventListener('error', function() {
+                                    handleImageError(this);
+                                });
+                            }
+                        });
+                    }
+                }
+            });
+        });
+    });
+    
+    // Start observing
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+</script>
 
 <!-- Toast Notification Script (if not already included in header) -->
 <script>

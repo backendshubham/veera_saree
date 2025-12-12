@@ -8,14 +8,14 @@ const fs = require('fs');
 const generateQRCodeNumber = () => {
   const timestamp = Date.now();
   const random = Math.floor(Math.random() * 10000);
-  return `VSC${timestamp}${random}`.substring(0, 20);
+  return `SHC${timestamp}${random}`.substring(0, 20);
 };
 
 // Extract QR code number from stored path
 const extractQRCodeNumber = (qrCodePath) => {
   if (!qrCodePath) return null;
   // If it's already just a number, return it
-  if (qrCodePath.startsWith('VSC')) {
+  if (qrCodePath.startsWith('SHC')) {
     return qrCodePath;
   }
   // Extract from URL path like http://domain/products/qrcode/VSC123
@@ -26,10 +26,8 @@ const extractQRCodeNumber = (qrCodePath) => {
 // Generate full QR scanner path/URL and QR code image
 const generateQRCodePath = (req) => {
   const qrCodeNumber = generateQRCodeNumber();
-  // Get the base URL from request or use environment variable
-  const protocol = req.protocol || 'http';
-  const host = req.get('host') || process.env.BASE_URL || 'localhost:3000';
-  const baseUrl = `${protocol}://${host}`;
+  // Use production URL or environment variable, fallback to localhost for development
+  const baseUrl = process.env.BASE_URL || process.env.PRODUCTION_URL || 'https://shubhamgarments.onrender.com';
   const qrCodePath = `${baseUrl}/products/qrcode/${qrCodeNumber}`;
   
   // Generate QR code image URL using QR Server API
@@ -62,7 +60,13 @@ const getHomePage = async (req, res) => {
       product.totalRatings = totalRatings;
     }
     
-    const categories = await db('products').distinct('category').pluck('category');
+    // Get categories that have at least 1 product
+    const categoriesWithProducts = await db('products')
+      .select('category')
+      .count('id as product_count')
+      .groupBy('category')
+      .having(db.raw('count(id)'), '>', 0);
+    const categories = categoriesWithProducts.map(cat => cat.category);
     
     res.render('user/home', {
       title: 'Veera Saree Center - Home',
@@ -79,11 +83,36 @@ const getHomePage = async (req, res) => {
 };
 
 // Get collections page
+// Helper function to get products with pagination and ratings
+const getProductsWithRatings = async (query, limit = 20, offset = 0) => {
+  const products = await query.clone().limit(limit).offset(offset);
+  
+  // Get ratings for each product
+  for (let product of products) {
+    const reviews = await db('reviews').where({ product_id: product.id });
+    const totalRatings = reviews.length;
+    const avgRating = totalRatings > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalRatings
+      : 0;
+    product.avgRating = parseFloat(avgRating.toFixed(1));
+    product.totalRatings = totalRatings;
+  }
+  
+  return products;
+};
+
 const getCollectionsPage = async (req, res) => {
   try {
-    const category = req.query.category;
+    // Support both single category (backward compatibility) and multiple categories
+    const queryCategories = req.query.categories ? (Array.isArray(req.query.categories) ? req.query.categories : [req.query.categories]) : null;
+    const category = req.query.category; // For backward compatibility
     const search = req.query.search;
-    let products;
+    const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : null;
+    const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : null;
+    const sortBy = req.query.sortBy || 'created_at';
+    const sortOrder = req.query.sortOrder || 'desc';
+    const limit = 20; // Initial load limit
+    const offset = 0;
     
     let query = db('products');
     
@@ -95,32 +124,95 @@ const getCollectionsPage = async (req, res) => {
       });
     }
     
-    if (category && category !== 'all') {
+    // Handle multiple categories or single category
+    if (queryCategories && queryCategories.length > 0) {
+      query = query.whereIn('category', queryCategories);
+    } else if (category && category !== 'all') {
       query = query.where({ category });
     }
     
-    products = await query.orderBy('created_at', 'desc');
-    
-    // Get ratings for each product
-    for (let product of products) {
-      const reviews = await db('reviews').where({ product_id: product.id });
-      const totalRatings = reviews.length;
-      const avgRating = totalRatings > 0
-        ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalRatings
-        : 0;
-      product.avgRating = parseFloat(avgRating.toFixed(1));
-      product.totalRatings = totalRatings;
+    // Price range filter
+    if (minPrice !== null && !isNaN(minPrice)) {
+      query = query.where('price', '>=', minPrice);
+    }
+    if (maxPrice !== null && !isNaN(maxPrice)) {
+      query = query.where('price', '<=', maxPrice);
     }
     
-    const categories = await db('products').distinct('category').pluck('category');
+    // Get total count for pagination
+    const totalCount = await query.clone().count('* as count').first();
+    const total = parseInt(totalCount.count);
+    
+    // Sorting
+    const validSortFields = ['title', 'price', 'created_at'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+    const order = sortOrder === 'desc' ? 'desc' : 'asc';
+    
+    // Get initial products with pagination
+    const products = await getProductsWithRatings(
+      query.orderBy(sortField, order),
+      limit,
+      offset
+    );
+    
+    // Get categories that have at least 1 product
+    let categories = [];
+    try {
+      // First try to get from categories table and check if they have products
+      const dbCategories = await db('categories')
+        .where({ is_active: true })
+        .orderBy('sort_order', 'asc')
+        .orderBy('name', 'asc');
+      
+      // Check which categories have products
+      const categoriesWithProducts = await db('products')
+        .select('category')
+        .count('id as product_count')
+        .groupBy('category')
+        .having(db.raw('count(id)'), '>', 0);
+      
+      const categoriesWithProductsSet = new Set(categoriesWithProducts.map(cat => cat.category));
+      categories = dbCategories
+        .map(cat => cat.name)
+        .filter(catName => categoriesWithProductsSet.has(catName));
+    } catch (err) {
+      // Fallback to product categories if categories table doesn't exist
+      const categoriesWithProducts = await db('products')
+        .select('category')
+        .count('id as product_count')
+        .groupBy('category')
+        .having(db.raw('count(id)'), '>', 0);
+      categories = categoriesWithProducts.map(cat => cat.category);
+    }
+    
+    // Get price range for filter
+    const priceRange = await db('products')
+      .min('price as min')
+      .max('price as max')
+      .first();
+    
+    // Determine selected categories for view
+    const selectedCategories = queryCategories && queryCategories.length > 0 ? queryCategories : (category && category !== 'all' ? [category] : []);
     
     res.render('user/collections', {
       title: 'Collections - Veera Saree Center',
       products,
       categories,
-      selectedCategory: category || 'all',
+      selectedCategory: selectedCategories.length > 0 ? selectedCategories : 'all',
+      selectedCategories: selectedCategories,
+      req: req, // Pass req for URL parsing in view
       searchQuery: search || '',
-      currentPage: 'collections'
+      minPrice: minPrice || '',
+      maxPrice: maxPrice || '',
+      sortBy,
+      sortOrder,
+      priceRange: {
+        min: priceRange?.min || 0,
+        max: priceRange?.max || 10000
+      },
+      currentPage: 'collections',
+      hasMore: total > limit,
+      totalProducts: total
     });
   } catch (error) {
     console.error('Get collections error:', error);
@@ -132,9 +224,16 @@ const getCollectionsPage = async (req, res) => {
 // Get catalog page
 const getCatalogPage = async (req, res) => {
   try {
-    const category = req.query.category;
+    // Support both single category (backward compatibility) and multiple categories
+    const queryCategories = req.query.categories ? (Array.isArray(req.query.categories) ? req.query.categories : [req.query.categories]) : null;
+    const category = req.query.category; // For backward compatibility
     const search = req.query.search;
-    let products;
+    const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : null;
+    const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : null;
+    const sortBy = req.query.sortBy || 'title';
+    const sortOrder = req.query.sortOrder || 'asc';
+    const limit = 20; // Initial load limit
+    const offset = 0;
     
     let query = db('products');
     
@@ -146,37 +245,236 @@ const getCatalogPage = async (req, res) => {
       });
     }
     
-    if (category && category !== 'all') {
+    // Handle multiple categories or single category
+    if (queryCategories && queryCategories.length > 0) {
+      query = query.whereIn('category', queryCategories);
+    } else if (category && category !== 'all') {
       query = query.where({ category });
     }
     
-    products = await query.orderBy('title', 'asc');
-    
-    // Get ratings for each product
-    for (let product of products) {
-      const reviews = await db('reviews').where({ product_id: product.id });
-      const totalRatings = reviews.length;
-      const avgRating = totalRatings > 0
-        ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalRatings
-        : 0;
-      product.avgRating = parseFloat(avgRating.toFixed(1));
-      product.totalRatings = totalRatings;
+    // Price range filter
+    if (minPrice !== null && !isNaN(minPrice)) {
+      query = query.where('price', '>=', minPrice);
+    }
+    if (maxPrice !== null && !isNaN(maxPrice)) {
+      query = query.where('price', '<=', maxPrice);
     }
     
-    const categories = await db('products').distinct('category').pluck('category');
+    // Get total count for pagination
+    const totalCount = await query.clone().count('* as count').first();
+    const total = parseInt(totalCount.count);
+    
+    // Sorting
+    const validSortFields = ['title', 'price', 'created_at'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'title';
+    const order = sortOrder === 'desc' ? 'desc' : 'asc';
+    
+    // Get initial products with pagination
+    const products = await getProductsWithRatings(
+      query.orderBy(sortField, order),
+      limit,
+      offset
+    );
+    
+    // Get categories that have at least 1 product
+    let categories = [];
+    try {
+      // First try to get from categories table and check if they have products
+      const dbCategories = await db('categories')
+        .where({ is_active: true })
+        .orderBy('sort_order', 'asc')
+        .orderBy('name', 'asc');
+      
+      // Check which categories have products
+      const categoriesWithProducts = await db('products')
+        .select('category')
+        .count('id as product_count')
+        .groupBy('category')
+        .having(db.raw('count(id)'), '>', 0);
+      
+      const categoriesWithProductsSet = new Set(categoriesWithProducts.map(cat => cat.category));
+      categories = dbCategories
+        .map(cat => cat.name)
+        .filter(catName => categoriesWithProductsSet.has(catName));
+    } catch (err) {
+      // Fallback to product categories if categories table doesn't exist
+      const categoriesWithProducts = await db('products')
+        .select('category')
+        .count('id as product_count')
+        .groupBy('category')
+        .having(db.raw('count(id)'), '>', 0);
+      categories = categoriesWithProducts.map(cat => cat.category);
+    }
+    
+    // Get price range for filter
+    const priceRange = await db('products')
+      .min('price as min')
+      .max('price as max')
+      .first();
+    
+    // Determine selected categories for view
+    const selectedCategories = queryCategories && queryCategories.length > 0 ? queryCategories : (category && category !== 'all' ? [category] : []);
     
     res.render('user/catalog', {
       title: 'Catalog - Veera Saree Center',
       products,
       categories,
-      selectedCategory: category || 'all',
+      selectedCategory: selectedCategories.length > 0 ? selectedCategories : 'all',
+      selectedCategories: selectedCategories,
+      req: req, // Pass req for URL parsing in view
       searchQuery: search || '',
-      currentPage: 'catalog'
+      minPrice: minPrice || '',
+      maxPrice: maxPrice || '',
+      sortBy,
+      sortOrder,
+      priceRange: {
+        min: priceRange?.min || 0,
+        max: priceRange?.max || 10000
+      },
+      currentPage: 'catalog',
+      hasMore: total > limit,
+      totalProducts: total
     });
   } catch (error) {
     console.error('Get catalog error:', error);
     setFlash(req, 'error', 'Error loading catalog');
     res.redirect('/');
+  }
+};
+
+// API: Get more products for collections (infinite scroll)
+const getMoreCollections = async (req, res) => {
+  try {
+    // Support both single category (backward compatibility) and multiple categories
+    const queryCategories = req.query.categories ? (Array.isArray(req.query.categories) ? req.query.categories : [req.query.categories]) : null;
+    const category = req.query.category; // For backward compatibility
+    const search = req.query.search;
+    const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : null;
+    const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : null;
+    const sortBy = req.query.sortBy || 'created_at';
+    const sortOrder = req.query.sortOrder || 'desc';
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+    
+    let query = db('products');
+    
+    if (search) {
+      query = query.where(function() {
+        this.where('title', 'ilike', `%${search}%`)
+            .orWhere('description', 'ilike', `%${search}%`)
+            .orWhere('category', 'ilike', `%${search}%`);
+      });
+    }
+    
+    // Handle multiple categories or single category
+    if (queryCategories && queryCategories.length > 0) {
+      query = query.whereIn('category', queryCategories);
+    } else if (category && category !== 'all') {
+      query = query.where({ category });
+    }
+    
+    // Price range filter
+    if (minPrice !== null && !isNaN(minPrice)) {
+      query = query.where('price', '>=', minPrice);
+    }
+    if (maxPrice !== null && !isNaN(maxPrice)) {
+      query = query.where('price', '<=', maxPrice);
+    }
+    
+    // Get total count
+    const totalCount = await query.clone().count('* as count').first();
+    const total = parseInt(totalCount.count);
+    
+    // Sorting
+    const validSortFields = ['title', 'price', 'created_at'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+    const order = sortOrder === 'desc' ? 'desc' : 'asc';
+    
+    // Get products with pagination
+    const products = await getProductsWithRatings(
+      query.orderBy(sortField, order),
+      limit,
+      offset
+    );
+    
+    res.json({
+      success: true,
+      products,
+      hasMore: (offset + limit) < total,
+      total,
+      offset: offset + products.length
+    });
+  } catch (error) {
+    console.error('Get more collections error:', error);
+    res.status(500).json({ success: false, error: 'Error loading products' });
+  }
+};
+
+// API: Get more products for catalog (infinite scroll)
+const getMoreCatalog = async (req, res) => {
+  try {
+    // Support both single category (backward compatibility) and multiple categories
+    const queryCategories = req.query.categories ? (Array.isArray(req.query.categories) ? req.query.categories : [req.query.categories]) : null;
+    const category = req.query.category; // For backward compatibility
+    const search = req.query.search;
+    const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : null;
+    const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : null;
+    const sortBy = req.query.sortBy || 'title';
+    const sortOrder = req.query.sortOrder || 'asc';
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+    
+    let query = db('products');
+    
+    if (search) {
+      query = query.where(function() {
+        this.where('title', 'ilike', `%${search}%`)
+            .orWhere('description', 'ilike', `%${search}%`)
+            .orWhere('category', 'ilike', `%${search}%`);
+      });
+    }
+    
+    // Handle multiple categories or single category
+    if (queryCategories && queryCategories.length > 0) {
+      query = query.whereIn('category', queryCategories);
+    } else if (category && category !== 'all') {
+      query = query.where({ category });
+    }
+    
+    // Price range filter
+    if (minPrice !== null && !isNaN(minPrice)) {
+      query = query.where('price', '>=', minPrice);
+    }
+    if (maxPrice !== null && !isNaN(maxPrice)) {
+      query = query.where('price', '<=', maxPrice);
+    }
+    
+    // Get total count
+    const totalCount = await query.clone().count('* as count').first();
+    const total = parseInt(totalCount.count);
+    
+    // Sorting
+    const validSortFields = ['title', 'price', 'created_at'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'title';
+    const order = sortOrder === 'desc' ? 'desc' : 'asc';
+    
+    // Get products with pagination
+    const products = await getProductsWithRatings(
+      query.orderBy(sortField, order),
+      limit,
+      offset
+    );
+    
+    res.json({
+      success: true,
+      products,
+      hasMore: (offset + limit) < total,
+      total,
+      offset: offset + products.length
+    });
+  } catch (error) {
+    console.error('Get more catalog error:', error);
+    res.status(500).json({ success: false, error: 'Error loading products' });
   }
 };
 
@@ -203,7 +501,13 @@ const getAllProducts = async (req, res) => {
     
     products = await query.orderBy('created_at', 'desc');
     
-    const categories = await db('products').distinct('category').pluck('category');
+    // Get categories that have at least 1 product
+    const categoriesWithProducts = await db('products')
+      .select('category')
+      .count('id as product_count')
+      .groupBy('category')
+      .having(db.raw('count(id)'), '>', 0);
+    const categories = categoriesWithProducts.map(cat => cat.category);
     
     res.render('user/collections', {
       title: 'Products - Veera Saree Center',
@@ -336,9 +640,16 @@ const adminShowProductForm = async (req, res) => {
       }
     }
     
+    // Get all active categories
+    const categories = await db('categories')
+      .where({ is_active: true })
+      .orderBy('sort_order', 'asc')
+      .orderBy('name', 'asc');
+    
     res.render('admin/product-form', {
       title: id ? 'Edit Product' : 'Add Product',
-      product
+      product,
+      categories
     });
   } catch (error) {
     console.error('Show product form error:', error);
@@ -413,18 +724,45 @@ const adminCreateProduct = async (req, res) => {
       existingQRCode = await db('products').where('qr_code', 'like', `%${qrCodeNumber}%`).first();
     }
     
-    await db('products').insert({
-      title,
-      description,
-      price: sellingPrice,
-      original_price: originalPrice,
-      discount_percentage: finalDiscount,
-      image: imageUrl,
-      stock: parseInt(stock),
-      category,
-      qr_code: qrCodePath, // Store full path
-      qr_code_image: qrCodeImageUrl // Store QR code image URL
-    });
+    try {
+      await db('products').insert({
+        title,
+        description,
+        price: sellingPrice,
+        original_price: originalPrice,
+        discount_percentage: finalDiscount,
+        image: imageUrl,
+        stock: parseInt(stock),
+        category,
+        qr_code: qrCodePath, // Store full path
+        qr_code_image: qrCodeImageUrl // Store QR code image URL
+      });
+    } catch (insertError) {
+      // Handle sequence out of sync error
+      if (insertError.code === '23505' && insertError.constraint === 'products_pkey') {
+        console.log('Fixing products sequence...');
+        // Get the max ID from the table
+        const maxIdResult = await db('products').max('id as max_id').first();
+        const maxId = maxIdResult?.max_id || 0;
+        // Reset the sequence to max ID + 1
+        await db.raw(`SELECT setval('products_id_seq', ${maxId + 1}, false)`);
+        // Retry the insert
+        await db('products').insert({
+          title,
+          description,
+          price: sellingPrice,
+          original_price: originalPrice,
+          discount_percentage: finalDiscount,
+          image: imageUrl,
+          stock: parseInt(stock),
+          category,
+          qr_code: qrCodePath,
+          qr_code_image: qrCodeImageUrl
+        });
+      } else {
+        throw insertError;
+      }
+    }
     
     setFlash(req, 'success', 'Product created successfully!');
     res.redirect('/admin/products');
@@ -618,6 +956,8 @@ module.exports = {
   getHomePage,
   getCollectionsPage,
   getCatalogPage,
+  getMoreCollections,
+  getMoreCatalog,
   getAllProducts,
   getProductDetails,
   getProductByQRCode,
